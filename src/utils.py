@@ -104,3 +104,141 @@ def extract_markdown_links(text):
   
   # Each match is a tuple of (anchor_text, url)
   return matches
+
+def split_nodes_image(old_nodes):
+  """Split text nodes that contain markdown image syntax into multiple nodes.
+  
+  Args:
+    old_nodes: A list of TextNode objects
+    
+  Returns:
+    A list of TextNode objects where any markdown images have been converted to image nodes
+  
+  Example:
+    node = TextNode("This is text with an ![image](https://example.com/image.jpg)", TextType.TEXT)
+    split_nodes_image([node]) # [TextNode("This is text with an ", TextType.TEXT), TextNode("image", TextType.IMAGE, "https://example.com/image.jpg")]
+  """
+  result = []
+  
+  for old_node in old_nodes:
+    # Only process TextNode with TEXT type
+    if not isinstance(old_node, TextNode) or old_node.text_type != TextType.TEXT:
+      result.append(old_node)
+      continue
+    
+    # Extract all images from the text
+    images = extract_markdown_images(old_node.text)
+    
+    # If no images found, keep the original node
+    if not images:
+      result.append(old_node)
+      continue
+    
+    # Process the text, splitting on each image
+    remaining_text = old_node.text
+    
+    for image_alt, image_url in images:
+      # Split the text at the image markdown
+      image_markdown = f"![{image_alt}]({image_url})"
+      sections = remaining_text.split(image_markdown, 1)
+      
+      # Add the text before the image if it's not empty
+      if sections[0]:
+        result.append(TextNode(sections[0], TextType.TEXT))
+      
+      # Add the image node
+      result.append(TextNode(image_alt, TextType.IMAGE, image_url))
+      
+      # Update the remaining text
+      if len(sections) > 1:
+        remaining_text = sections[1]
+      else:
+        remaining_text = ""
+    
+    # Add any remaining text after the last image
+    if remaining_text:
+      result.append(TextNode(remaining_text, TextType.TEXT))
+  
+  return result
+
+def split_nodes_link(old_nodes):
+  """Split text nodes that contain markdown link syntax into multiple nodes.
+  
+  Args:
+    old_nodes: A list of TextNode objects
+    
+  Returns:
+    A list of TextNode objects where any markdown links have been converted to link nodes
+  
+  Example:
+    node = TextNode("This is text with a link [to boot dev](https://www.boot.dev)", TextType.TEXT)
+    split_nodes_link([node]) # [TextNode("This is text with a link ", TextType.TEXT), TextNode("to boot dev", TextType.LINK, "https://www.boot.dev")]
+  """
+  result = []
+  
+  for old_node in old_nodes:
+    # Only process TextNode with TEXT type
+    if not isinstance(old_node, TextNode) or old_node.text_type != TextType.TEXT:
+      result.append(old_node)
+      continue
+    
+    # Extract all links from the text
+    links = extract_markdown_links(old_node.text)
+    
+    # If no links found, keep the original node
+    if not links:
+      result.append(old_node)
+      continue
+    
+    # Process the text, splitting on each link
+    remaining_text = old_node.text
+    
+    for link_text, link_url in links:
+      # Split the text at the link markdown
+      link_markdown = f"[{link_text}]({link_url})"
+      sections = remaining_text.split(link_markdown, 1)
+      
+      # Add the text before the link if it's not empty
+      if sections[0]:
+        result.append(TextNode(sections[0], TextType.TEXT))
+      
+      # Add the link node
+      result.append(TextNode(link_text, TextType.LINK, link_url))
+      
+      # Update the remaining text
+      if len(sections) > 1:
+        remaining_text = sections[1]
+      else:
+        remaining_text = ""
+    
+    # Add any remaining text after the last link
+    if remaining_text:
+      result.append(TextNode(remaining_text, TextType.TEXT))
+  
+  return result
+
+def text_to_textnodes(text):
+  """Convert markdown text to a list of TextNode objects.
+  
+  Args:
+    text: A string containing markdown text
+    
+  Returns:
+    A list of TextNode objects representing the parsed markdown text
+  
+  Example:
+    text = "This is **text** with an _italic_ word and a `code block`"
+    text_to_textnodes(text) # [TextNode("This is ", TextType.TEXT), TextNode("text", TextType.BOLD), ...]
+  """
+  # Start with a single text node containing the entire text
+  nodes = [TextNode(text, TextType.TEXT)]
+  
+  # Apply each splitting function in sequence
+  # Order matters here - we want to process delimiters first, then images and links
+  nodes = split_nodes_delimiter(nodes, "**", TextType.BOLD)
+  nodes = split_nodes_delimiter(nodes, "_", TextType.ITALIC)
+  nodes = split_nodes_delimiter(nodes, "`", TextType.CODE)
+  nodes = split_nodes_image(nodes)
+  nodes = split_nodes_link(nodes)
+  
+  return nodes
