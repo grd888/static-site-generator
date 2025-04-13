@@ -2,7 +2,7 @@ import unittest
 
 from textnode import TextNode, TextType
 
-from utils import text_node_to_html_node, split_nodes_delimiter, extract_markdown_images
+from utils import text_node_to_html_node, split_nodes_delimiter, extract_markdown_images, extract_markdown_links
 
 class TestUtils(unittest.TestCase):
     def test_text(self):
@@ -147,6 +147,43 @@ class TestUtils(unittest.TestCase):
         images = extract_markdown_images(text)
         
         self.assertEqual(len(images), 0)
+    
+    def test_extract_markdown_links(self):
+        # Test with multiple links
+        text = "This is text with a link [to boot dev](https://www.boot.dev) and [to youtube](https://www.youtube.com/@bootdotdev)"
+        links = extract_markdown_links(text)
+        
+        self.assertEqual(len(links), 2)
+        self.assertEqual(links[0], ("to boot dev", "https://www.boot.dev"))
+        self.assertEqual(links[1], ("to youtube", "https://www.youtube.com/@bootdotdev"))
+    
+    def test_extract_markdown_links_no_links(self):
+        # Test with no links
+        text = "This is text with no markdown links"
+        links = extract_markdown_links(text)
+        
+        self.assertEqual(len(links), 0)
+    
+    def test_extract_markdown_links_incomplete_syntax(self):
+        # Test with incomplete markdown link syntax
+        text = "This has an incomplete [anchor text](https://example.com and [another](no closing parenthesis"
+        links = extract_markdown_links(text)
+        
+        self.assertEqual(len(links), 0)
+    
+    def test_extract_markdown_links_with_images(self):
+        # Test with both links and images
+        text = "This has a [link](https://example.com) and an ![image](https://example.com/image.jpg)"
+        links = extract_markdown_links(text)
+        
+        self.assertEqual(len(links), 1)
+        self.assertEqual(links[0], ("link", "https://example.com"))
+
+    def test_extract_markdown_images(self):
+        matches = extract_markdown_images(
+            "This is text with an ![image](https://i.imgur.com/zjjcJKZ.png)"
+        )
+        self.assertListEqual([("image", "https://i.imgur.com/zjjcJKZ.png")], matches)
   
 if __name__ == "__main__":
     unittest.main()

@@ -80,3 +80,27 @@ def extract_markdown_images(text):
   
   # Each match is a tuple of (alt_text, url)
   return matches
+
+def extract_markdown_links(text):
+  """Extract markdown links from text and return a list of tuples with anchor text and URL.
+  
+  Args:
+    text: A string containing markdown text
+    
+  Returns:
+    A list of tuples, each containing (anchor_text, url) for each markdown link found
+  
+  Example:
+    text = "This is text with a link [to boot dev](https://www.boot.dev)"
+    extract_markdown_links(text) # [("to boot dev", "https://www.boot.dev")]
+  """
+  # Regular expression pattern for markdown links: [anchor text](url)
+  # The pattern captures two groups: the anchor text and the URL
+  # The negative lookbehind (?<!!)) ensures we don't match image syntax (which has ! before [)
+  pattern = r"(?<!!)\[(.*?)\]\((.*?)\)"
+  
+  # Find all matches in the text
+  matches = re.findall(pattern, text)
+  
+  # Each match is a tuple of (anchor_text, url)
+  return matches
