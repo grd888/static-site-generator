@@ -1,7 +1,7 @@
 import re
-from src.textnode import TextNode, TextType
-from src.htmlnode import LeafNode, ParentNode
-from src.blocktype import BlockType, block_to_block_type
+from textnode import TextNode, TextType
+from htmlnode import LeafNode, ParentNode
+from blocktype import BlockType, block_to_block_type
 
 def text_node_to_html_node(text_node):
   if text_node.text_type == TextType.TEXT:
@@ -373,6 +373,33 @@ def extract_list_items(list_block, ordered=False):
         items.append(line[2:])
   
   return items
+
+def extract_title(markdown):
+  """Extract the title (h1 header) from a markdown string.
+  
+  Args:
+    markdown: A string containing markdown text
+    
+  Returns:
+    The text content of the first h1 header found in the markdown
+    
+  Raises:
+    ValueError: If no h1 header is found in the markdown
+    
+  Example:
+    extract_title("# Hello\n\nThis is content") # "Hello"
+  """
+  # Split the markdown into blocks
+  blocks = markdown_to_blocks(markdown)
+  
+  # Look for a block that starts with a single # character
+  for block in blocks:
+    if block.startswith("# "):
+      # Extract the title (remove the # and any leading/trailing whitespace)
+      return block[2:].strip()
+  
+  # If no h1 header is found, raise an exception
+  raise ValueError("No h1 header found in the markdown")
 
 def markdown_to_html_node(markdown):
   """Convert a markdown string to an HTML node.

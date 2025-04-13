@@ -1,7 +1,7 @@
 import unittest
 
 from src.textnode import TextNode, TextType
-from src.utils import text_node_to_html_node, split_nodes_delimiter, extract_markdown_images, extract_markdown_links, split_nodes_image, split_nodes_link, text_to_textnodes, markdown_to_blocks, markdown_to_html_node
+from src.utils import text_node_to_html_node, split_nodes_delimiter, extract_markdown_images, extract_markdown_links, split_nodes_image, split_nodes_link, text_to_textnodes, markdown_to_blocks, markdown_to_html_node, extract_title
 
 class TestUtils(unittest.TestCase):
     def test_text(self):
@@ -557,6 +557,31 @@ with multiple lines
             html,
             "<div><h1>Main Heading</h1><p>This is a paragraph with <b>bold</b> and <i>italic</i> text.</p><pre><code>code block\nwith multiple lines\n</code></pre><blockquote>This is a quote\nwith multiple lines</blockquote><ul><li>List item 1</li><li>List item 2</li></ul><ol><li>Ordered item 1</li><li>Ordered item 2</li></ol></div>",
         )
+        
+    def test_extract_title_basic(self):
+        md = "# Hello, World!\n\nThis is some content."
+        title = extract_title(md)
+        self.assertEqual(title, "Hello, World!")
+        
+    def test_extract_title_with_formatting(self):
+        md = "# This is a **bold** title\n\nWith content."
+        title = extract_title(md)
+        self.assertEqual(title, "This is a **bold** title")
+        
+    def test_extract_title_with_extra_whitespace(self):
+        md = "#    Title with extra spaces    \n\nContent."
+        title = extract_title(md)
+        self.assertEqual(title, "Title with extra spaces")
+        
+    def test_extract_title_multiline_markdown(self):
+        md = "Some text before\n\n# The Real Title\n\nMore content."
+        title = extract_title(md)
+        self.assertEqual(title, "The Real Title")
+        
+    def test_extract_title_no_h1(self):
+        md = "## This is h2\n\nNo h1 here."
+        with self.assertRaises(ValueError):
+            extract_title(md)
 
 if __name__ == "__main__":
     unittest.main()
