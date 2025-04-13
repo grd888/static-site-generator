@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import logging
 from textnode import TextNode, TextType
@@ -53,7 +54,7 @@ def copy_directory(source_dir, dest_dir):
             logging.info(f"Copying file: {source_file} -> {dest_file}")
             shutil.copy2(source_file, dest_file)
 
-def generate_page(from_path, template_path, dest_path):
+def generate_page(from_path, template_path, dest_path, basepath="/"):
     """
     Generate an HTML page from a markdown file using a template.
     
@@ -61,6 +62,7 @@ def generate_page(from_path, template_path, dest_path):
         from_path: Path to the markdown file
         template_path: Path to the HTML template file
         dest_path: Path where the generated HTML file will be saved
+        basepath: Base path for all links and resources (default: "/")
     """
     logging.info(f"Generating page from {from_path} to {dest_path} using {template_path}")
     
@@ -107,6 +109,17 @@ def generate_page(from_path, template_path, dest_path):
     # Replace placeholders in template
     try:
         final_html = template_content.replace("{{ Title }}", title).replace("{{ Content }}", html_content)
+        
+        # Replace href and src attributes with basepath
+        if basepath != "/":
+            # Make sure basepath doesn't end with a slash if it's not just "/"
+            if basepath.endswith("/"):
+                basepath = basepath[:-1]
+            
+            # Replace href="/ with href="{basepath}/
+            final_html = final_html.replace('href="/', f'href="{basepath}/')
+            # Replace src="/ with src="{basepath}/
+            final_html = final_html.replace('src="/', f'src="{basepath}/')
     except Exception as e:
         logging.error(f"Error replacing placeholders: {e}")
         return
@@ -130,7 +143,7 @@ def generate_page(from_path, template_path, dest_path):
         logging.error(f"Error writing HTML file: {e}")
         return
 
-def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path, basepath="/"):
     """
     Recursively crawl a directory for markdown files and generate HTML pages.
     
@@ -138,6 +151,7 @@ def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
         dir_path_content: Path to the content directory containing markdown files
         template_path: Path to the HTML template file
         dest_dir_path: Path to the destination directory for generated HTML files
+        basepath: Base path for all links and resources (default: "/")
     """
     logging.info(f"Recursively generating pages from {dir_path_content} to {dest_dir_path}")
     
@@ -174,30 +188,34 @@ def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
                     dest_file = os.path.join(dest_subdir, file.replace('.md', '.html'))
                 
                 # Generate the HTML page
-                generate_page(source_file, template_path, dest_file)
+                generate_page(source_file, template_path, dest_file, basepath)
 
 def main():
+    # Get basepath from command line arguments or use default "/"
+    basepath = sys.argv[1] if len(sys.argv) > 1 else "/"
+    logging.info(f"Using basepath: {basepath}")
+    
     # Define source and destination directories relative to the project root
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     static_dir = os.path.join(project_root, "static")
-    public_dir = os.path.join(project_root, "public")
+    docs_dir = os.path.join(project_root, "docs")
     content_dir = os.path.join(project_root, "content")
     template_path = os.path.join(project_root, "template.html")
     
-    # Step 1: Delete anything in the public directory
-    if os.path.exists(public_dir):
-        logging.info(f"Deleting existing public directory: {public_dir}")
-        shutil.rmtree(public_dir)
-        logging.info("Public directory deleted successfully")
+    # Step 1: Delete anything in the docs directory
+    if os.path.exists(docs_dir):
+        logging.info(f"Deleting existing docs directory: {docs_dir}")
+        shutil.rmtree(docs_dir)
+        logging.info("Docs directory deleted successfully")
     
-    # Step 2: Copy all static files from static to public
-    logging.info(f"Copying static files from {static_dir} to {public_dir}")
-    copy_directory(static_dir, public_dir)
+    # Step 2: Copy all static files from static to docs
+    logging.info(f"Copying static files from {static_dir} to {docs_dir}")
+    copy_directory(static_dir, docs_dir)
     logging.info("Static files copied successfully")
     
     # Step 3: Generate HTML pages from markdown files recursively
     logging.info("Recursively generating HTML pages from markdown files")
-    generate_pages_recursive(content_dir, template_path, public_dir)
+    generate_pages_recursive(content_dir, template_path, docs_dir, basepath)
     logging.info("HTML pages generated successfully")
 
 if __name__ == "__main__":
