@@ -242,3 +242,31 @@ def text_to_textnodes(text):
   nodes = split_nodes_link(nodes)
   
   return nodes
+
+def markdown_to_blocks(markdown):
+  """Split a markdown string into blocks based on double newlines.
+  
+  Args:
+    markdown: A string containing markdown text
+    
+  Returns:
+    A list of strings, each representing a block of markdown
+  
+  Example:
+    markdown = "# Heading\n\nParagraph text\n\n- List item"
+    markdown_to_blocks(markdown) # ["# Heading", "Paragraph text", "- List item"]
+  """
+  # Split the markdown by double newlines
+  blocks = markdown.split("\n\n")
+  
+  # Process each block
+  result = []
+  for block in blocks:
+    # Strip leading/trailing whitespace
+    stripped_block = block.strip()
+    
+    # Only add non-empty blocks
+    if stripped_block:
+      result.append(stripped_block)
+  
+  return result

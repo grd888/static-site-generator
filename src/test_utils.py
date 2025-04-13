@@ -2,7 +2,7 @@ import unittest
 
 from textnode import TextNode, TextType
 
-from utils import text_node_to_html_node, split_nodes_delimiter, extract_markdown_images, extract_markdown_links, split_nodes_image, split_nodes_link, text_to_textnodes
+from utils import text_node_to_html_node, split_nodes_delimiter, extract_markdown_images, extract_markdown_links, split_nodes_image, split_nodes_link, text_to_textnodes, markdown_to_blocks
 
 class TestUtils(unittest.TestCase):
     def test_text(self):
@@ -361,6 +361,85 @@ class TestUtils(unittest.TestCase):
         for i in range(len(nodes)):
             self.assertEqual(nodes[i].text, expected_nodes[i].text)
             self.assertEqual(nodes[i].text_type, expected_nodes[i].text_type)
+    
+    def test_markdown_to_blocks_basic(self):
+        markdown = "# This is a heading\n\nThis is a paragraph of text. It has some **bold** and _italic_ words inside of it.\n\n- This is the first list item in a list block\n- This is a list item\n- This is another list item"
+        blocks = markdown_to_blocks(markdown)
+        
+        expected_blocks = [
+            "# This is a heading",
+            "This is a paragraph of text. It has some **bold** and _italic_ words inside of it.",
+            "- This is the first list item in a list block\n- This is a list item\n- This is another list item"
+        ]
+        
+        self.assertEqual(blocks, expected_blocks)
+    
+    def test_markdown_to_blocks_empty_blocks(self):
+        # Test with excessive newlines that would create empty blocks
+        markdown = "# Heading\n\n\n\nParagraph\n\n\n\n- List"
+        blocks = markdown_to_blocks(markdown)
+        
+        expected_blocks = [
+            "# Heading",
+            "Paragraph",
+            "- List"
+        ]
+        
+        self.assertEqual(blocks, expected_blocks)
+    
+    def test_markdown_to_blocks_whitespace(self):
+        # Test with blocks that have leading/trailing whitespace
+        markdown = "  # Heading with space  \n\n  Paragraph with space  "
+        blocks = markdown_to_blocks(markdown)
+        
+        expected_blocks = [
+            "# Heading with space",
+            "Paragraph with space"
+        ]
+        
+        self.assertEqual(blocks, expected_blocks)
+    
+    def test_markdown_to_blocks_single_block(self):
+        # Test with a single block (no double newlines)
+        markdown = "This is just one block of text"
+        blocks = markdown_to_blocks(markdown)
+        
+        expected_blocks = ["This is just one block of text"]
+        
+        self.assertEqual(blocks, expected_blocks)
+    
+    def test_markdown_to_blocks_code_blocks(self):
+        # Test with code blocks that contain newlines
+        markdown = "# Code Example\n\n```python\ndef hello():\n    print(\"Hello, world!\")\n```\n\nEnd of example"
+        blocks = markdown_to_blocks(markdown)
+        
+        expected_blocks = [
+            "# Code Example",
+            "```python\ndef hello():\n    print(\"Hello, world!\")\n```",
+            "End of example"
+        ]
+        
+        self.assertEqual(blocks, expected_blocks)
+
+    def test_markdown_to_blocks(self):
+        md = """
+This is **bolded** paragraph
+
+This is another paragraph with _italic_ text and `code` here
+This is the same paragraph on a new line
+
+- This is a list
+- with items
+"""
+        blocks = markdown_to_blocks(md)
+        self.assertEqual(
+            blocks,
+            [
+                "This is **bolded** paragraph",
+                "This is another paragraph with _italic_ text and `code` here\nThis is the same paragraph on a new line",
+            "- This is a list\n- with items",
+        ],
+    )
   
 if __name__ == "__main__":
     unittest.main()
