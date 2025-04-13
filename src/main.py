@@ -130,6 +130,52 @@ def generate_page(from_path, template_path, dest_path):
         logging.error(f"Error writing HTML file: {e}")
         return
 
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+    """
+    Recursively crawl a directory for markdown files and generate HTML pages.
+    
+    Args:
+        dir_path_content: Path to the content directory containing markdown files
+        template_path: Path to the HTML template file
+        dest_dir_path: Path to the destination directory for generated HTML files
+    """
+    logging.info(f"Recursively generating pages from {dir_path_content} to {dest_dir_path}")
+    
+    # Make sure the content directory exists
+    if not os.path.exists(dir_path_content):
+        logging.error(f"Content directory does not exist: {dir_path_content}")
+        return
+    
+    # Walk through the content directory
+    for root, dirs, files in os.walk(dir_path_content):
+        # Get the relative path from the content directory
+        rel_path = os.path.relpath(root, dir_path_content)
+        
+        # Create the corresponding directory in the destination
+        if rel_path != '.':
+            dest_subdir = os.path.join(dest_dir_path, rel_path)
+        else:
+            dest_subdir = dest_dir_path
+        
+        # Process markdown files
+        for file in files:
+            # Check if the file is a markdown file
+            if file.endswith('.md'):
+                # Get the source and destination paths
+                source_file = os.path.join(root, file)
+                
+                # If the file is named index.md, keep the directory structure
+                # Otherwise, create an HTML file with the same name
+                if file == 'index.md':
+                    # For index.md, create index.html in the same relative directory
+                    dest_file = os.path.join(dest_subdir, 'index.html')
+                else:
+                    # For other markdown files, replace .md with .html
+                    dest_file = os.path.join(dest_subdir, file.replace('.md', '.html'))
+                
+                # Generate the HTML page
+                generate_page(source_file, template_path, dest_file)
+
 def main():
     # Define source and destination directories relative to the project root
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -149,11 +195,9 @@ def main():
     copy_directory(static_dir, public_dir)
     logging.info("Static files copied successfully")
     
-    # Step 3: Generate HTML pages from markdown files
-    logging.info("Generating HTML pages from markdown files")
-    index_md_path = os.path.join(content_dir, "index.md")
-    index_html_path = os.path.join(public_dir, "index.html")
-    generate_page(index_md_path, template_path, index_html_path)
+    # Step 3: Generate HTML pages from markdown files recursively
+    logging.info("Recursively generating HTML pages from markdown files")
+    generate_pages_recursive(content_dir, template_path, public_dir)
     logging.info("HTML pages generated successfully")
 
 if __name__ == "__main__":
