@@ -1,16 +1,21 @@
 import re
-from textnode import TextNode, TextType
-from htmlnode import LeafNode
+from src.textnode import TextNode, TextType
+from src.htmlnode import LeafNode, ParentNode
+from src.blocktype import BlockType, block_to_block_type
 
 def text_node_to_html_node(text_node):
   if text_node.text_type == TextType.TEXT:
-    return LeafNode(None,text_node.text)
+    return LeafNode(None, text_node.text)
   elif text_node.text_type == TextType.BOLD:
     return LeafNode("b", text_node.text)
   elif text_node.text_type == TextType.ITALIC:
     return LeafNode("i", text_node.text)
+  elif text_node.text_type == TextType.CODE:
+    return LeafNode("code", text_node.text)
   elif text_node.text_type == TextType.LINK:
     return LeafNode("a", text_node.text, {"href": text_node.url})
+  elif text_node.text_type == TextType.IMAGE:
+    return LeafNode("img", "", {"src": text_node.url, "alt": text_node.text})
   else:
     raise ValueError(f"Unknown text type: {text_node.text_type}")
 
@@ -270,3 +275,165 @@ def markdown_to_blocks(markdown):
       result.append(stripped_block)
   
   return result
+
+def text_to_children(text):
+  """Convert text to a list of HTMLNode children by processing inline markdown.
+  
+  Args:
+    text: A string containing markdown text
+    
+  Returns:
+    A list of HTMLNode objects representing the inline markdown elements
+  """
+  text_nodes = text_to_textnodes(text)
+  return [text_node_to_html_node(text_node) for text_node in text_nodes]
+
+def extract_title_level(heading_block):
+  """Extract the heading level from a heading block.
+  
+  Args:
+    heading_block: A string containing a heading block
+    
+  Returns:
+    A tuple of (level, content) where level is an integer 1-6 and content is the heading text
+  """
+  # Split by the first space to separate the # markers from the content
+  parts = heading_block.split(" ", 1)
+  level = len(parts[0])  # Count the number of # characters
+  content = parts[1] if len(parts) > 1 else ""
+  return level, content
+
+def extract_code_content(code_block):
+  """Extract the content from a code block, removing the triple backticks.
+  
+  Args:
+    code_block: A string containing a code block with triple backticks
+    
+  Returns:
+    The content of the code block without the triple backticks
+  """
+  # Remove the first and last line (which contain the triple backticks)
+  lines = code_block.split("\n")
+  if len(lines) <= 2:  # Just the opening and closing backticks
+    return ""
+  
+  # Check if the first line has a language specifier after the backticks
+  if lines[0].startswith("```") and len(lines[0]) > 3:
+    # Remove the opening line with language specifier and the closing line
+    return "\n".join(lines[1:-1]) + "\n"
+  else:
+    # Remove the opening and closing backtick lines
+    return "\n".join(lines[1:-1]) + "\n"
+
+def extract_quote_content(quote_block):
+  """Extract the content from a quote block, removing the > markers.
+  
+  Args:
+    quote_block: A string containing a quote block where each line starts with >
+    
+  Returns:
+    The content of the quote block without the > markers
+  """
+  lines = quote_block.split("\n")
+  result = []
+  
+  for line in lines:
+    # Remove the > and the space after it (if present)
+    if line.startswith("> "):
+      result.append(line[2:])
+    elif line.startswith(">"):
+      result.append(line[1:])
+    else:
+      result.append(line)  # Shouldn't happen if properly formatted
+  
+  return "\n".join(result)
+
+def extract_list_items(list_block, ordered=False):
+  """Extract items from a list block.
+  
+  Args:
+    list_block: A string containing a list block
+    ordered: Boolean indicating if this is an ordered list
+    
+  Returns:
+    A list of strings, each representing a list item without the marker
+  """
+  lines = list_block.split("\n")
+  items = []
+  
+  for i, line in enumerate(lines):
+    if ordered:
+      # For ordered lists, remove the number, period, and space
+      prefix = f"{i+1}. "
+      if line.startswith(prefix):
+        items.append(line[len(prefix):])
+    else:
+      # For unordered lists, remove the dash and space
+      if line.startswith("- "):
+        items.append(line[2:])
+  
+  return items
+
+def markdown_to_html_node(markdown):
+  """Convert a markdown string to an HTML node.
+  
+  Args:
+    markdown: A string containing markdown text
+    
+  Returns:
+    An HTMLNode object representing the markdown document
+  """
+  # Split the markdown into blocks
+  blocks = markdown_to_blocks(markdown)
+  
+  # Process each block and create HTML nodes
+  children = []
+  for block in blocks:
+    # Determine the block type
+    block_type = block_to_block_type(block)
+    
+    if block_type == BlockType.PARAGRAPH:
+      # Replace newlines with spaces in paragraphs
+      block_text = block.replace("\n", " ")
+      # Create paragraph node with inline markdown processing
+      children.append(ParentNode("p", text_to_children(block_text)))
+    
+    elif block_type == BlockType.HEADING:
+      # Extract the heading level and content
+      level, content = extract_title_level(block)
+      # Create heading node with inline markdown processing
+      children.append(ParentNode(f"h{level}", text_to_children(content)))
+    
+    elif block_type == BlockType.CODE:
+      # Extract code content without the backticks
+      code_content = extract_code_content(block)
+      # Create code block without inline markdown processing
+      code_node = TextNode(code_content, TextType.TEXT)
+      # Wrap in pre and code tags
+      code_html_node = text_node_to_html_node(code_node)
+      children.append(ParentNode("pre", [ParentNode("code", [code_html_node])]))
+    
+    elif block_type == BlockType.QUOTE:
+      # Extract quote content without the > markers
+      quote_content = extract_quote_content(block)
+      # Create quote node with inline markdown processing
+      children.append(ParentNode("blockquote", text_to_children(quote_content)))
+    
+    elif block_type == BlockType.UNORDERED_LIST:
+      # Extract list items
+      items = extract_list_items(block, ordered=False)
+      # Create list items with inline markdown processing
+      list_items = [ParentNode("li", text_to_children(item)) for item in items]
+      # Create unordered list node
+      children.append(ParentNode("ul", list_items))
+    
+    elif block_type == BlockType.ORDERED_LIST:
+      # Extract list items
+      items = extract_list_items(block, ordered=True)
+      # Create list items with inline markdown processing
+      list_items = [ParentNode("li", text_to_children(item)) for item in items]
+      # Create ordered list node
+      children.append(ParentNode("ol", list_items))
+  
+  # Create parent div node containing all block nodes
+  return ParentNode("div", children)
